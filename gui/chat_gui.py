@@ -146,10 +146,13 @@ class ChatGUI:
         self.btn_play = self._create_button(
             right_frame, "▶", "Reproducir", 3, self.play_audio
         )
+        self.btn_delete = self._create_button(
+            right_frame, "🗑", "Eliminar", 4, self.delete_audio
+        )
         
         # Separador visual
         separator = ttk.Separator(right_frame, orient="horizontal")
-        separator.grid(row=4, column=0, sticky="ew", pady=20)
+        separator.grid(row=5, column=0, sticky="ew", pady=20)
         
         # ===========================
         # SECCIÓN 2: CONTROLES DEL SISTEMA
@@ -160,14 +163,11 @@ class ChatGUI:
             font=("Arial", 10, "bold"),
             anchor="center"
         )
-        system_section_label.grid(row=5, column=0, sticky="ew", pady=(0, 10))
+        system_section_label.grid(row=6, column=0, sticky="ew", pady=(0, 10))
         
         # Botones del sistema
         self.btn_pause = self._create_button(
-            right_frame, "⏸", "Pausar", 6, self.pause_audio
-        )
-        self.btn_delete = self._create_button(
-            right_frame, "🗑", "Eliminar", 7, self.delete_audio
+            right_frame, "⏸", "Pausar", 7, self.pause_audio
         )
         self.btn_send = self._create_button(
             right_frame, "➤", "Enviar", 8, self.process_audio
