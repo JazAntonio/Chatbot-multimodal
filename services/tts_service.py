@@ -19,6 +19,11 @@ class TTSService:
         self.tts_url = "https://api.inworld.ai/tts/v1/voice"
         self.voice_id = "Hana"
         self.model_id = "inworld-tts-1.5-mini"
+        
+        # Estado de reproducción para pause/resume
+        self.is_playing = False
+        self.audio_data = None
+        self.sample_rate = None
 
     def synthesize(self, text):
         """
@@ -63,8 +68,10 @@ class TTSService:
         if not os.path.exists(self.output_file):
             raise FileNotFoundError("No existe archivo TTS")
 
-        data, fs = sf.read(self.output_file, dtype="float32")
-        sd.play(data, fs)
+        # Cargar y guardar datos de audio para pause/resume
+        self.audio_data, self.sample_rate = sf.read(self.output_file, dtype="float32")
+        sd.play(self.audio_data, self.sample_rate)
+        self.is_playing = True
         # No usar sd.wait() para permitir que la UI siga respondiendo
         print("Reproduciendo audio TTS...")
 
@@ -73,6 +80,17 @@ class TTSService:
         Detiene la reproducción del audio TTS
         """
         sd.stop()
+        self.is_playing = False
+        print("Audio TTS detenido")
+    
+    def resume_audio(self):
+        """
+        Reanuda la reproducción del audio TTS desde el inicio.
+        """
+        if self.audio_data is not None and self.sample_rate is not None:
+            sd.play(self.audio_data, self.sample_rate)
+            self.is_playing = True
+            print("Reanudando audio TTS...")
 
     def delete_audio(self):
         if os.path.exists(self.output_file):

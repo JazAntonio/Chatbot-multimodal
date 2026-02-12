@@ -167,10 +167,42 @@ class ChatGUI:
         self.audio_service.play_audio()
     
     def pause_audio(self):
-        """Pause/stop any active audio playback."""
-        self.audio_service.stop_audio()
-        self.tts_service.stop_audio()
-        self.append_text("⏸ Audio detenido.\n")
+        """
+        Toggle pause/resume for audio playback.
+        Pauses if playing, resumes if paused.
+        """
+        # Verificar si el TTS está reproduciendo
+        if self.tts_service.is_playing:
+            # Pausar
+            self.audio_service.stop_audio()
+            self.tts_service.stop_audio()
+            self.append_text("⏸ Audio pausado.\n")
+            # Cambiar botón a "Reanudar"
+            self._update_pause_button("▶", "Reanudar")
+        else:
+            # Reanudar (solo TTS, el audio del usuario se reproduce con el botón "Reproducir")
+            if self.tts_service.audio_data is not None:
+                self.tts_service.resume_audio()
+                self.append_text("▶ Audio reanudado.\n")
+                # Cambiar botón a "Pausar"
+                self._update_pause_button("⏸", "Pausar")
+            else:
+                self.append_text("⚠ No hay audio TTS para reanudar.\n")
+    
+    def _update_pause_button(self, icon, text):
+        """
+        Update the pause button icon and text.
+        
+        Args:
+            icon: New icon to display
+            text: New label text
+        """
+        # Encontrar el botón y su etiqueta
+        for widget in self.btn_pause.master.winfo_children():
+            if isinstance(widget, tk.Button):
+                widget.config(text=icon)
+            elif hasattr(widget, 'cget') and widget.cget('text') in ["Pausar", "Reanudar"]:
+                widget.config(text=text)
     
     def delete_audio(self):
         """Delete recorded audio file."""
@@ -224,6 +256,9 @@ class ChatGUI:
             
             self.tts_service.synthesize(assistant_text)
             self.tts_service.play_audio()
+            
+            # Actualizar botón de pausa a estado "Pausar"
+            self.root.after(0, lambda: self._update_pause_button("⏸", "Pausar"))
             
         except Exception as e:
             self.root.after(
