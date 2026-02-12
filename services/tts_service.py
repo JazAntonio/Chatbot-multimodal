@@ -57,7 +57,7 @@ class TTSService:
 
     def play_audio(self):
         """
-        Reproduce el audio generado
+        Reproduce el audio generado de forma no bloqueante.
         """
 
         if not os.path.exists(self.output_file):
@@ -65,7 +65,14 @@ class TTSService:
 
         data, fs = sf.read(self.output_file, dtype="float32")
         sd.play(data, fs)
-        sd.wait()
+        # No usar sd.wait() para permitir que la UI siga respondiendo
+        print("Reproduciendo audio TTS...")
+
+    def stop_audio(self):
+        """
+        Detiene la reproducción del audio TTS
+        """
+        sd.stop()
 
     def delete_audio(self):
         if os.path.exists(self.output_file):

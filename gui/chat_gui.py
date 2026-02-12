@@ -1,0 +1,257 @@
+"""
+GUI Module for Audio GPT Interface
+Handles all UI components and user interactions using Tkinter
+"""
+
+import tkinter as tk
+from tkinter import ttk
+import threading
+
+
+class ChatGUI:
+    """
+    Main GUI class for the Audio GPT chatbot interface.
+    Separates presentation logic from business logic.
+    """
+    
+    def __init__(self, root, audio_service, stt_service, gpt_service, tts_service):
+        """
+        Initialize the GUI with required services.
+        
+        Args:
+            root: Tkinter root window
+            audio_service: Service for audio recording/playback
+            stt_service: Service for speech-to-text
+            gpt_service: Service for GPT responses
+            tts_service: Service for text-to-speech
+        """
+        self.root = root
+        self.root.title("Audio GPT Interface")
+        self.root.geometry("850x600")
+        
+        # Store service references
+        self.audio_service = audio_service
+        self.stt_service = stt_service
+        self.gpt_service = gpt_service
+        self.tts_service = tts_service
+        
+        # Initialize UI
+        self._setup_layout()
+        self._create_widgets()
+    
+    def _setup_layout(self):
+        """Configure the main window layout with two columns."""
+        self.root.columnconfigure(0, weight=1)
+        self.root.columnconfigure(1, weight=1)
+        self.root.rowconfigure(0, weight=1)
+    
+    def _create_widgets(self):
+        """Create all UI widgets."""
+        self._create_chat_area()
+        self._create_control_panel()
+    
+    def _create_chat_area(self):
+        """Create the left column with chat text area."""
+        left_frame = ttk.Frame(self.root, padding=10)
+        left_frame.grid(row=0, column=0, sticky="nsew")
+        
+        left_frame.columnconfigure(0, weight=1)
+        left_frame.rowconfigure(0, weight=1)
+        
+        # Text area for chat display
+        self.text_area = tk.Text(
+            left_frame,
+            wrap="word",
+            font=("Arial", 12)
+        )
+        self.text_area.grid(row=0, column=0, sticky="nsew")
+        
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(
+            left_frame,
+            orient="vertical",
+            command=self.text_area.yview
+        )
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        
+        self.text_area.config(yscrollcommand=scrollbar.set)
+    
+    def _create_control_panel(self):
+        """Create the right column with control buttons."""
+        right_frame = ttk.Frame(self.root, padding=10)
+        right_frame.grid(row=0, column=1, sticky="nsew")
+        
+        right_frame.columnconfigure(0, weight=1)
+        
+        for i in range(7):
+            right_frame.rowconfigure(i, weight=1)
+        
+        # Create buttons
+        self.btn_start = self._create_button(
+            right_frame, "🎙", "Grabar", 0, self.start_recording
+        )
+        self.btn_stop = self._create_button(
+            right_frame, "⏹", "Detener", 1, self.stop_recording
+        )
+        self.btn_play = self._create_button(
+            right_frame, "▶", "Reproducir", 2, self.play_audio
+        )
+        self.btn_pause = self._create_button(
+            right_frame, "⏸", "Pausar", 3, self.pause_audio
+        )
+        self.btn_delete = self._create_button(
+            right_frame, "🗑", "Eliminar", 4, self.delete_audio
+        )
+        self.btn_send = self._create_button(
+            right_frame, "➤", "Enviar", 5, self.process_audio
+        )
+        self.btn_close = self._create_button(
+            right_frame, "↪", "Cerrar sesión", 6, self.close_session
+        )
+    
+    def _create_button(self, parent, icon, text, row, command):
+        """
+        Factory method to create a button with icon and label.
+        
+        Args:
+            parent: Parent widget
+            icon: Icon/emoji to display
+            text: Label text below button
+            row: Row position in grid
+            command: Callback function
+            
+        Returns:
+            The created button widget
+        """
+        frame = ttk.Frame(parent)
+        frame.grid(row=row, column=0, sticky="ew", pady=6)
+        frame.columnconfigure(0, weight=1)
+        
+        button = tk.Button(
+            frame,
+            text=icon,
+            font=("Arial", 16),
+            width=3,
+            height=1,
+            command=command
+        )
+        button.grid(row=0, column=0)
+        
+        label = ttk.Label(
+            frame,
+            text=text,
+            font=("Arial", 9),
+            wraplength=140,
+            justify="center"
+        )
+        label.grid(row=1, column=0, pady=(3, 0))
+        
+        return button
+    
+    # =========================
+    # AUDIO CONTROL METHODS
+    # =========================
+    
+    def start_recording(self):
+        """Start audio recording."""
+        self.audio_service.start_recording()
+        self.append_text("🎙 Grabando...\n")
+    
+    def stop_recording(self):
+        """Stop audio recording."""
+        self.audio_service.stop_recording()
+        self.append_text("⏹ Grabación detenida.\n")
+    
+    def play_audio(self):
+        """Play recorded audio."""
+        self.audio_service.play_audio()
+    
+    def pause_audio(self):
+        """Pause/stop any active audio playback."""
+        self.audio_service.stop_audio()
+        self.tts_service.stop_audio()
+        self.append_text("⏸ Audio detenido.\n")
+    
+    def delete_audio(self):
+        """Delete recorded audio file."""
+        self.audio_service.delete_audio()
+        self.append_text("🗑 Grabación eliminada.\n")
+    
+    # =========================
+    # PROCESSING METHODS
+    # =========================
+    
+    def process_audio(self):
+        """
+        Process audio through the complete pipeline:
+        STT -> GPT -> TTS
+        Runs in a separate thread to avoid blocking UI.
+        """
+        thread = threading.Thread(target=self._process_audio_thread)
+        thread.daemon = True
+        thread.start()
+    
+    def _process_audio_thread(self):
+        """
+        Background thread for audio processing.
+        Handles transcription, GPT response, and TTS synthesis.
+        """
+        try:
+            # Step 1: Transcribe audio
+            self.root.after(0, lambda: self.append_text("⏳ Transcribiendo...\n"))
+            
+            user_text = self.stt_service.transcribe_file(
+                self.audio_service.output_file
+            )
+            
+            self.root.after(
+                0,
+                lambda: self.append_text(f"\n👤 Usuario:\n{user_text}\n\n")
+            )
+            
+            # Step 2: Generate GPT response
+            self.root.after(0, lambda: self.append_text("🤖 Generando respuesta...\n"))
+            
+            assistant_text = self.gpt_service.generate_response(user_text)
+            
+            self.root.after(
+                0,
+                lambda: self.append_text(f"🤖 Asistente:\n{assistant_text}\n\n")
+            )
+            
+            # Step 3: Synthesize and play TTS
+            self.root.after(0, lambda: self.append_text("🔊 Sintetizando voz...\n"))
+            
+            self.tts_service.synthesize(assistant_text)
+            self.tts_service.play_audio()
+            
+        except Exception as e:
+            self.root.after(
+                0,
+                lambda err=e: self.append_text(f"\n❌ Error:\n{str(err)}\n")
+            )
+    
+    def close_session(self):
+        """Clean up and close the application."""
+        self.audio_service.delete_audio()
+        self.tts_service.delete_audio()
+        self.gpt_service.reset_conversation()
+        self.root.destroy()
+    
+    # =========================
+    # UTILITY METHODS
+    # =========================
+    
+    def append_text(self, message):
+        """
+        Append text to the chat area and auto-scroll.
+        
+        Args:
+            message: Text to append
+        """
+        self.text_area.insert(tk.END, message)
+        self.text_area.see(tk.END)
+    
+    def run(self):
+        """Start the Tkinter main event loop."""
+        self.root.mainloop()

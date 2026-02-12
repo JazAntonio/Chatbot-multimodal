@@ -78,6 +78,9 @@ class AudioService:
     # REPRODUCIR
     # =========================
     def play_audio(self):
+        """
+        Reproduce el audio grabado de forma no bloqueante.
+        """
         if not os.path.exists(self.output_file):
             print("No hay archivo para reproducir")
             return
@@ -92,8 +95,19 @@ class AudioService:
             # 🔥 Asegurar forma correcta (mono)
             audio = audio.reshape(-1, 1)
 
+            # Reproducir sin bloquear (sin sd.wait())
             sd.play(audio, wf.getframerate())
-            sd.wait()
+            print("Reproduciendo audio...")
+
+    # =========================
+    # DETENER REPRODUCCIÓN
+    # =========================
+    def stop_audio(self):
+        """
+        Detiene cualquier reproducción de audio activa.
+        """
+        sd.stop()
+        print("Reproducción detenida")
 
     # =========================
     # ELIMINAR
