@@ -2,6 +2,10 @@ import sounddevice as sd
 import numpy as np
 import wave
 import os
+from utils.logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
 class AudioService:
@@ -21,7 +25,7 @@ class AudioService:
 
         def callback(indata, frames, time, status):
             if status:
-                print("Audio status:", status)
+                logger.warning(f"Audio callback status: {status}")
             if self.recording:
                 self.audio_data.append(indata.copy())
 
@@ -33,7 +37,7 @@ class AudioService:
         )
 
         self.stream.start()
-        print("Grabando...")
+        logger.info("Audio recording started")
 
     # =========================
     # DETENER Y GUARDAR
@@ -47,15 +51,14 @@ class AudioService:
         self.stream.close()
 
         if not self.audio_data:
-            print("No se capturó audio.")
+            logger.warning("No audio data captured during recording")
             return None
 
         audio = np.concatenate(self.audio_data, axis=0)
 
-        print("Shape:", audio.shape)
-        print("Min:", audio.min())
-        print("Max:", audio.max())
-        print("Duración aprox (seg):", len(audio) / self.fs)
+        duration = len(audio) / self.fs
+        logger.debug(f"Audio shape: {audio.shape}, Min: {audio.min():.4f}, Max: {audio.max():.4f}")
+        logger.info(f"Recording duration: {duration:.2f} seconds")
 
         # Normalización
         max_val = np.max(np.abs(audio))
@@ -71,7 +74,7 @@ class AudioService:
             wf.setframerate(self.fs)
             wf.writeframes(audio_int16.tobytes())
 
-        print("Grabación guardada en:", self.output_file)
+        logger.info(f"Recording saved to: {self.output_file}")
         return self.output_file
 
     # =========================
@@ -82,7 +85,7 @@ class AudioService:
         Reproduce el audio grabado de forma no bloqueante.
         """
         if not os.path.exists(self.output_file):
-            print("No hay archivo para reproducir")
+            logger.warning(f"Audio file not found: {self.output_file}")
             return
 
         with wave.open(self.output_file, "rb") as wf:
@@ -97,7 +100,7 @@ class AudioService:
 
             # Reproducir sin bloquear (sin sd.wait())
             sd.play(audio, wf.getframerate())
-            print("Reproduciendo audio...")
+            logger.info("Playing recorded audio")
 
     # =========================
     # DETENER REPRODUCCIÓN
@@ -107,7 +110,7 @@ class AudioService:
         Detiene cualquier reproducción de audio activa.
         """
         sd.stop()
-        print("Reproducción detenida")
+        logger.info("Audio playback stopped")
 
     # =========================
     # ELIMINAR
@@ -115,9 +118,9 @@ class AudioService:
     def delete_audio(self):
         if os.path.exists(self.output_file):
             os.remove(self.output_file)
-            print("Archivo eliminado")
+            logger.info(f"Audio file deleted: {self.output_file}")
         else:
-            print("No existe archivo para eliminar")
+            logger.warning("No audio file to delete")
 
 
 

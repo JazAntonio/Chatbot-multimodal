@@ -6,6 +6,11 @@ Handles all UI components and user interactions using Tkinter
 import tkinter as tk
 from tkinter import ttk
 import threading
+import logging
+from utils.logger import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
 class ChatGUI:
@@ -38,6 +43,11 @@ class ChatGUI:
         # Initialize UI
         self._setup_layout()
         self._create_widgets()
+        
+        # Setup GUI logging handler after widgets are created
+        self._setup_gui_logging()
+        
+        logger.info("ChatGUI initialized successfully")
     
     def _setup_layout(self):
         """Configure the main window layout with three columns."""
@@ -117,6 +127,47 @@ class ChatGUI:
         logs_scrollbar.grid(row=1, column=1, sticky="ns")
         
         self.logs_area.config(yscrollcommand=logs_scrollbar.set)
+    
+    def _setup_gui_logging(self):
+        """
+        Setup a custom logging handler that sends logs to the GUI.
+        This allows all logger.info(), logger.debug(), etc. calls to appear in the logs panel.
+        """
+        class TkinterLogHandler(logging.Handler):
+            """Custom logging handler that writes to a Tkinter Text widget."""
+            
+            def __init__(self, text_widget, root):
+                super().__init__()
+                self.text_widget = text_widget
+                self.root = root
+            
+            def emit(self, record):
+                """Emit a log record to the Tkinter Text widget."""
+                try:
+                    msg = self.format(record)
+                    # Use root.after to ensure thread-safe GUI updates
+                    self.root.after(0, lambda: self._append_to_widget(msg))
+                except Exception:
+                    self.handleError(record)
+            
+            def _append_to_widget(self, msg):
+                """Append message to the text widget (must run in main thread)."""
+                self.text_widget.insert(tk.END, msg + "\n")
+                self.text_widget.see(tk.END)
+        
+        # Create and configure the handler
+        gui_handler = TkinterLogHandler(self.logs_area, self.root)
+        gui_handler.setLevel(logging.INFO)  # Show INFO and above in GUI
+        
+        # Simple format for GUI display
+        formatter = logging.Formatter('%(levelname)s: %(message)s')
+        gui_handler.setFormatter(formatter)
+        
+        # Add handler to root logger to capture all logs from all modules
+        root_logger = logging.getLogger()
+        root_logger.addHandler(gui_handler)
+        
+        logger.debug("GUI logging handler configured")
     
     def _create_control_panel(self):
         """Create the middle column with control buttons divided into sections."""
@@ -221,16 +272,17 @@ class ChatGUI:
     
     def start_recording(self):
         """Start audio recording."""
+        logger.info("User initiated recording")
         self.audio_service.start_recording()
-        self.append_log("🎙 Grabando...\n")
     
     def stop_recording(self):
         """Stop audio recording."""
+        logger.info("User stopped recording")
         self.audio_service.stop_recording()
-        self.append_log("⏹ Grabación detenida.\n")
     
     def play_audio(self):
         """Play recorded audio."""
+        logger.info("User requested audio playback")
         self.audio_service.play_audio()
     
     def pause_audio(self):
@@ -241,20 +293,20 @@ class ChatGUI:
         # Verificar si el TTS está reproduciendo
         if self.tts_service.is_playing:
             # Pausar
+            logger.info("Pausing audio playback")
             self.audio_service.stop_audio()
             self.tts_service.stop_audio()
-            self.append_log("⏸ Audio pausado.\n")
             # Cambiar botón a "Reanudar"
             self._update_pause_button("▶", "Reanudar")
         else:
             # Reanudar (solo TTS, el audio del usuario se reproduce con el botón "Reproducir")
             if self.tts_service.audio_data is not None:
+                logger.info("Resuming audio playback")
                 self.tts_service.resume_audio()
-                self.append_log("▶ Audio reanudado.\n")
                 # Cambiar botón a "Pausar"
                 self._update_pause_button("⏸", "Pausar")
             else:
-                self.append_log("⚠ No hay audio TTS para reanudar.\n")
+                logger.warning("No TTS audio available to resume")
     
     def _update_pause_button(self, icon, text):
         """
@@ -273,8 +325,8 @@ class ChatGUI:
     
     def delete_audio(self):
         """Delete recorded audio file."""
+        logger.info("User requested audio deletion")
         self.audio_service.delete_audio()
-        self.append_log("🗑 Grabación eliminada.\n")
     
     # =========================
     # PROCESSING METHODS
@@ -286,6 +338,7 @@ class ChatGUI:
         STT -> GPT -> TTS
         Runs in a separate thread to avoid blocking UI.
         """
+        logger.info("Starting audio processing pipeline")
         thread = threading.Thread(target=self._process_audio_thread)
         thread.daemon = True
         thread.start()
@@ -297,7 +350,7 @@ class ChatGUI:
         """
         try:
             # Step 1: Transcribe audio
-            self.root.after(0, lambda: self.append_log("⏳ Transcribiendo...\n"))
+            logger.info("Step 1/3: Starting transcription")
             
             user_text = self.stt_service.transcribe_file(
                 self.audio_service.output_file
@@ -309,7 +362,7 @@ class ChatGUI:
             )
             
             # Step 2: Generate GPT response
-            self.root.after(0, lambda: self.append_log("🤖 Generando respuesta...\n"))
+            logger.info("Step 2/3: Generating GPT response")
             
             assistant_text = self.gpt_service.generate_response(user_text)
             
@@ -319,7 +372,7 @@ class ChatGUI:
             )
             
             # Step 3: Synthesize and play TTS
-            self.root.after(0, lambda: self.append_log("🔊 Sintetizando voz...\n"))
+            logger.info("Step 3/3: Synthesizing speech")
             
             self.tts_service.synthesize(assistant_text)
             self.tts_service.play_audio()
@@ -327,7 +380,10 @@ class ChatGUI:
             # Actualizar botón de pausa a estado "Pausar"
             self.root.after(0, lambda: self._update_pause_button("⏸", "Pausar"))
             
+            logger.info("Audio processing pipeline completed successfully")
+            
         except Exception as e:
+            logger.error(f"Audio processing failed: {e}", exc_info=True)
             self.root.after(
                 0,
                 lambda err=e: self.append_text(f"\n❌ Error:\n{str(err)}\n")
@@ -335,9 +391,11 @@ class ChatGUI:
     
     def close_session(self):
         """Clean up and close the application."""
+        logger.info("Closing session and cleaning up resources")
         self.audio_service.delete_audio()
         self.tts_service.delete_audio()
         self.gpt_service.reset_conversation()
+        logger.info("Application shutdown complete")
         self.root.destroy()
     
     # =========================
