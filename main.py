@@ -3,6 +3,7 @@ Main Entry Point for Audio GPT Chatbot
 Initializes services and launches the GUI
 """
 
+import os
 import tkinter as tk
 from gui.chat_gui import ChatGUI
 from services.audio_service import AudioService
@@ -34,11 +35,21 @@ def main():
         logger.debug("Creating AudioService instance")
         audio_service = AudioService()
         
-        logger.debug("Creating STTService instance")
-        stt_service = STTService()
+        # Get security configuration from environment
+        security_level = os.getenv("SECURITY_LEVEL", "MEDIUM")
+        enable_security = os.getenv("ENABLE_PROMPT_INJECTION_DETECTION", "true").lower() == "true"
         
-        logger.debug("Creating GPTService instance")
-        gpt_service = GPTService()
+        logger.debug(f"Creating STTService instance with security level: {security_level}")
+        stt_service = STTService(
+            enable_security=enable_security,
+            security_level=security_level
+        )
+        
+        logger.debug(f"Creating GPTService instance with security level: {security_level}")
+        gpt_service = GPTService(
+            enable_security=enable_security,
+            security_level=security_level
+        )
         
         logger.debug("Creating TTSService instance")
         tts_service = TTSService()

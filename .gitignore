@@ -25,6 +25,7 @@ ENV/
 # Logs
 *.log
 chatbot.log*
+security.log*
 
 # Audio Files
 output.wav
@@ -32,9 +33,19 @@ response.wav
 *.wav
 *.mp3
 
+# Test Files
+test_logging.py
+pytest_cache/
+.pytest_cache/
+
 # OS
 .DS_Store
 Thumbs.db
 
 # Docker
 .dockerignore
+
+# Temporary Files
+*.tmp
+*.temp
+.cache/
