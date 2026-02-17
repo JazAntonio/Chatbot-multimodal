@@ -56,6 +56,21 @@ class Settings:
         self.log_max_bytes = int(os.getenv("LOG_MAX_BYTES", "10485760"))  # 10MB
         self.log_backup_count = int(os.getenv("LOG_BACKUP_COUNT", "3"))
         
+        # Security Configuration
+        self.security_level = os.getenv("SECURITY_LEVEL", "MEDIUM")
+        self.max_input_length = int(os.getenv("MAX_INPUT_LENGTH", "2000"))
+        self.max_tokens_per_message = int(os.getenv("MAX_TOKENS_PER_MESSAGE", "500"))
+        self.enable_prompt_injection_detection = os.getenv(
+            "ENABLE_PROMPT_INJECTION_DETECTION", "true"
+        ).lower() == "true"
+        self.enable_content_moderation = os.getenv(
+            "ENABLE_CONTENT_MODERATION", "true"
+        ).lower() == "true"
+        self.rate_limit_messages_per_minute = int(
+            os.getenv("RATE_LIMIT_MESSAGES_PER_MINUTE", "10")
+        )
+        self.custom_blacklist_patterns = os.getenv("CUSTOM_BLACKLIST_PATTERNS", "")
+        
         # System Prompt
         self.system_prompt = os.getenv(
             "SYSTEM_PROMPT",
