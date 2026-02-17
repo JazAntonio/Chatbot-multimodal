@@ -9,7 +9,7 @@ A secure, multimodal chatbot application with voice input/output capabilities an
 - 🗣️ **Speech-to-Text**: Automatic transcription using OpenAI Whisper
 - 🤖 **AI Responses**: Intelligent responses powered by OpenAI GPT-5-nano
 - 🔊 **Text-to-Speech**: Natural voice synthesis using Inworld AI
-- 💬 **Chat Interface**: Modern Tkinter GUI with conversation history
+- 💬 **Chat Interface**: Standard Tkinter GUI with conversation history
 - 📝 **System Logs**: Real-time logging panel for monitoring
 
 ### Security Features
